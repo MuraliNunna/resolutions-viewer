@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Website Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .controls {
+            position: sticky;
+            top: 0;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            z-index: 100;
+        }
+        .url-form {
+            display: flex;
+            gap: 10px;
+        }
+        #url-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+        .viewport-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+        }
+        .viewport {
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .viewport iframe {
+            border: none;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+        }
+        .viewport-label {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            font-size: 12px;
+            color: #666;
+            background: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .viewport-watermark {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.3);
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: bold;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        #resolution-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .resolution-preset {
+            background-color: #e8eaed;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #444;
+        }
+        .resolution-preset:hover {
+            background-color: #d2d5db;
+        }
+        .resolution-preset.active {
+            background-color: #4285f4;
+            color: white;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4285f4;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .custom-resolution {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .custom-resolution input {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .custom-resolution button {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        #sync-scroll {
+            margin-right: 5px;
+        }
+        .viewport-scroll {
+            max-width: 100%;
+            overflow-x: auto;
+            margin: 0 auto;
+            position: relative;
+        }
+        .sync-option {
+            display: none;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <form class="url-form" id="url-form">
+            <input type="url" id="url-input" placeholder="Enter website URL (e.g., https://example.com)" required>
+            <button type="submit">Load</button>
+        </form>
+        
+        <div class="options">
+            <h3>Common Screen Resolutions:</h3>
+            <div id="resolution-presets">
+                <!-- Large Desktop Resolutions -->
+                <button type="button" class="resolution-preset desktop-preset" data-width="7680" data-height="4320">8K 7680x4320</button>
+                <button type="button" class="resolution-preset desktop-preset" data-width="5120" data-height="2880">5K 5120x2880</button>
+                <button type="button" class="resolution-preset desktop-preset" data-width="3840" data-height="2160">4K 3840x2160</button>
+                <button type="button" class="resolution-preset desktop-preset" data-width="3440" data-height="1440">Ultrawide 3440x1440</button>
+                <button type="button" class="resolution-preset" data-width="2560" data-height="1440">QHD 2560x1440</button>
+                <button type="button" class="resolution-preset" data-width="1920" data-height="1080">Full HD 1920x1080</button>
+                <button type="button" class="resolution-preset" data-width="1680" data-height="1050">WSXGA+ 1680x1050</button>
+                <button type="button" class="resolution-preset" data-width="1600" data-height="900">HD+ 1600x900</button>
+                <button type="button" class="resolution-preset" data-width="1440" data-height="900">WXGA+ 1440x900</button>
+                <button type="button" class="resolution-preset" data-width="1366" data-height="768">HD 1366x768</button>
+                <button type="button" class="resolution-preset" data-width="1280" data-height="720">HD 1280x720</button>
+                
+                <!-- Tablet/Mobile Resolutions -->
+                <button type="button" class="resolution-preset" data-width="1024" data-height="768">Tablet 1024x768</button>
+                <button type="button" class="resolution-preset" data-width="768" data-height="1024">Tablet Portrait 768x1024</button>
+                <button type="button" class="resolution-preset" data-width="428" data-height="926">iPhone 13 Pro Max</button>
+                <button type="button" class="resolution-preset" data-width="390" data-height="844">iPhone 13 Pro</button>
+                <button type="button" class="resolution-preset" data-width="360" data-height="800">Android Phone</button>
+            </div>
+            
+            <div class="custom-resolution">
+                <label>Add custom resolution:</label>
+                <input type="number" id="custom-width" placeholder="Width" min="200" max="3840">
+                <span>x</span>
+                <input type="number" id="custom-height" placeholder="Height" min="200" max="2160">
+                <button type="button" id="add-custom">Add</button>
+            </div>
+            
+            <div class="sync-option">
+                <input type="checkbox" id="sync-scroll" checked>
+                <label for="sync-scroll">Synchronize scrolling and clicks across all viewports</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="viewport-container" id="viewport-container">
+        <!-- Viewports will be added here dynamically -->
+    </div>
+
+    <script>
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlForm = document.getElementById('url-form');
+            const urlInput = document.getElementById('url-input');
+            const viewportContainer = document.getElementById('viewport-container');
+            const resolutionPresets = document.querySelectorAll('.resolution-preset');
+            const syncScrollCheckbox = document.getElementById('sync-scroll');
+            const addCustomButton = document.getElementById('add-custom');
+            const customWidthInput = document.getElementById('custom-width');
+            const customHeightInput = document.getElementById('custom-height');
+            
+            let activeResolutions = new Set();
+            let currentUrl = '';
+            
+            // Add click event listeners to each preset button
+            resolutionPresets.forEach(preset => {
+                preset.addEventListener('click', function() {
+                    const width = parseInt(this.dataset.width);
+                    const height = parseInt(this.dataset.height);
+                    
+                    toggleResolution(width, height, this);
+                    updateViewports();
+                });
+            });
+            
+            // Add custom resolution
+            addCustomButton.addEventListener('click', function() {
+                const width = parseInt(customWidthInput.value);
+                const height = parseInt(customHeightInput.value);
+                
+                if (width && height && width >= 200 && height >= 200) {
+                    // Create a new preset button
+                    const newPreset = document.createElement('button');
+                    newPreset.type = 'button';
+                    newPreset.className = 'resolution-preset';
+                    newPreset.dataset.width = width;
+                    newPreset.dataset.height = height;
+                    newPreset.textContent = `Custom ${width}x${height}`;
+                    
+                    newPreset.addEventListener('click', function() {
+                        toggleResolution(width, height, this);
+                        updateViewports();
+                    });
+                    
+                    document.getElementById('resolution-presets').appendChild(newPreset);
+                    
+                    // Activate the new resolution
+                    toggleResolution(width, height, newPreset);
+                    updateViewports();
+                    
+                    // Clear inputs
+                    customWidthInput.value = '';
+                    customHeightInput.value = '';
+                }
+            });
+            
+            // Submit form handler
+            urlForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                loadUrl(urlInput.value);
+                
+                // Focus first iframe for better keyboard interaction
+                setTimeout(() => {
+                    const firstIframe = document.querySelector('.viewport iframe');
+                    if (firstIframe) {
+                        try {
+                            firstIframe.focus();
+                        } catch(e) {}
+                    }
+                }, 1000);
+            });
+            
+            function loadUrl(url) {
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = 'https://' + url;
+                }
+                
+                currentUrl = url;
+                updateViewports();
+            }
+            
+            function toggleResolution(width, height, button) {
+                const resolution = `${width}x${height}`;
+                
+                if (activeResolutions.has(resolution)) {
+                    activeResolutions.delete(resolution);
+                    button.classList.remove('active');
+                } else {
+                    activeResolutions.add(resolution);
+                    button.classList.add('active');
+                }
+            }
+            
+            function updateViewports() {
+                // Clear existing viewports
+                viewportContainer.innerHTML = '';
+                
+                if (!currentUrl || activeResolutions.size === 0) {
+                    // Show a message if no URL or resolutions selected
+                    const message = document.createElement('div');
+                    message.style.textAlign = 'center';
+                    message.style.padding = '40px';
+                    message.style.color = '#666';
+                    message.innerHTML = currentUrl 
+                        ? 'Please select at least one screen resolution from above.'
+                        : 'Enter a URL and select screen resolutions to preview.';
+                    viewportContainer.appendChild(message);
+                    return;
+                }
+                
+                // Add viewports for each active resolution
+                activeResolutions.forEach(resolution => {
+                    const [width, height] = resolution.split('x').map(Number);
+                    addViewport(width, height);
+                });
+                
+                // Setup synchronized scrolling if enabled
+                if (syncScrollCheckbox?.checked) {
+                    setupSyncedEvents();
+                }
+            }
+            
+            function addViewport(width, height) {
+                const viewportScroll = document.createElement('div');
+                viewportScroll.className = 'viewport-scroll';
+                viewportScroll.style.maxWidth = Math.min(width, window.innerWidth - 40) + 'px';
+                
+                const viewport = document.createElement('div');
+                viewport.className = 'viewport';
+                viewport.style.width = width + 'px';
+                viewport.style.height = height + 'px';
+                
+                const label = document.createElement('div');
+                label.className = 'viewport-label';
+                label.textContent = `${width}x${height}`;
+                viewport.appendChild(label);
+                
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.className = 'loading-overlay';
+                
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner';
+                loadingOverlay.appendChild(spinner);
+                viewport.appendChild(loadingOverlay);
+                
+                // Create a container for the iframe and watermark
+                const iframeContainer = document.createElement('div');
+                iframeContainer.style.position = 'relative';
+                iframeContainer.style.width = '100%';
+                iframeContainer.style.height = '100%';
+                
+                const iframe = document.createElement('iframe');
+                iframe.src = currentUrl;
+                iframe.dataset.width = width;
+                iframe.dataset.height = height;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                
+                // Add watermark inside the container but above the iframe
+                const watermark = document.createElement('div');
+                watermark.className = 'viewport-watermark';
+                watermark.textContent = `${width}x${height}`;
+                
+                iframeContainer.appendChild(iframe);
+                iframeContainer.appendChild(watermark);
+                viewport.appendChild(iframeContainer);
+                
+                iframe.addEventListener('load', function() {
+                    loadingOverlay.style.display = 'none';
+                    
+                    // Add a flag to indicate this iframe is loaded
+                    iframe.dataset.loaded = 'true';
+                    
+                    // Check if all iframes are loaded before setting up sync
+                    const allIframes = document.querySelectorAll('.viewport iframe');
+                    const allLoaded = Array.from(allIframes).every(frame => frame.dataset.loaded === 'true');
+                    
+                    if (allLoaded && syncScrollCheckbox?.checked) {
+                        // Re-setup sync events when all iframes are loaded
+                        setupSyncedEvents();
+                    }
+                });
+                
+                iframe.addEventListener('error', function() {
+                    loadingOverlay.innerHTML = 'Failed to load the page. Check the URL and try again.';
+                });
+                
+                viewportScroll.appendChild(viewport);
+                viewportContainer.appendChild(viewportScroll);
+            }
+            
+            function setupSyncedEvents() {
+                const iframes = document.querySelectorAll('.viewport iframe');
+                if (iframes.length <= 1) return;
+                
+                // Create a proxy iframe to handle communication between frames
+                const proxyHandler = function(sourceIframe) {
+                    let isScrolling = false;
+                    
+                    return function(event) {
+                        // Prevent infinite scroll loop
+                        if (isScrolling) return;
+                        isScrolling = true;
+                        
+                        try {
+                            // Get scroll position as percentage
+                            const doc = sourceIframe.contentDocument || sourceIframe.contentWindow.document;
+                            const scrollWidth = doc.documentElement.scrollWidth || doc.body.scrollWidth;
+                            const scrollHeight = doc.documentElement.scrollHeight || doc.body.scrollHeight;
+                            const scrollTop = doc.documentElement.scrollTop || doc.body.scrollTop;
+                            const scrollLeft = doc.documentElement.scrollLeft || doc.body.scrollLeft;
+                            
+                            // Calculate percentage scrolled
+                            const percentX = scrollWidth > 0 ? scrollLeft / (scrollWidth - sourceIframe.clientWidth) : 0;
+                            const percentY = scrollHeight > 0 ? scrollTop / (scrollHeight - sourceIframe.clientHeight) : 0;
+                            
+                            // Apply to all other iframes
+                            iframes.forEach(targetIframe => {
+                                if (targetIframe !== sourceIframe) {
+                                    try {
+                                        const targetDoc = targetIframe.contentDocument || targetIframe.contentWindow.document;
+                                        const targetScrollWidth = targetDoc.documentElement.scrollWidth || targetDoc.body.scrollWidth;
+                                        const targetScrollHeight = targetDoc.documentElement.scrollHeight || targetDoc.body.scrollHeight;
+                                        
+                                        // Calculate target position
+                                        const targetX = percentX * (targetScrollWidth - targetIframe.clientWidth);
+                                        const targetY = percentY * (targetScrollHeight - targetIframe.clientHeight);
+                                        
+                                        // Scroll to position
+                                        targetIframe.contentWindow.scrollTo(targetX, targetY);
+                                    } catch (e) {
+                                        // Cross-origin error, can't sync this iframe
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            // Security error or other issue
+                            console.log('Error syncing scroll:', e.message);
+                        }
+                        
+                        // Release scrolling lock after a short delay
+                        setTimeout(() => {
+                            isScrolling = false;
+                        }, 50);
+                    };
+                };
+                
+                // Add event listeners to each iframe
+                iframes.forEach(iframe => {
+                    iframe.addEventListener('load', () => {
+                        try {
+                            // Create a handler specific to this iframe
+                            const scrollHandler = proxyHandler(iframe);
+                            
+                            // We need to handle both the document and window scroll events
+                            iframe.contentWindow.addEventListener('scroll', scrollHandler);
+                            
+                            try {
+                                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                                
+                                // Add click event handler for links
+                                doc.addEventListener('click', (e) => {
+                                    try {
+                                        const clickedElement = e.target.closest('a');
+                                        if (clickedElement && clickedElement.href) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            
+                                            const href = clickedElement.getAttribute('href');
+                                            if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                                                // Get absolute URL
+                                                let absoluteUrl;
+                                                try {
+                                                    absoluteUrl = new URL(href, iframe.src).href;
+                                                } catch (e) {
+                                                    absoluteUrl = href;
+                                                }
+                                                
+                                                // Load in all iframes
+                                                loadUrl(absoluteUrl);
+                                            }
+                                            return false;
+                                        }
+                                    } catch (e) {
+                                        // Error handling click
+                                    }
+                                }, true);
+                            } catch (e) {
+                                // Cross-origin error for click handler
+                            }
+                        } catch (e) {
+                            // Security or other error
+                            console.log('Cannot sync iframe due to security restrictions: ' + e.message);
+                            
+                            // Add a note to the viewport about cross-origin restrictions
+                            const viewport = iframe.closest('.viewport');
+                            if (viewport) {
+                                const noteElem = document.createElement('div');
+                                noteElem.style.position = 'absolute';
+                                noteElem.style.bottom = '10px';
+                                noteElem.style.left = '10px';
+                                noteElem.style.backgroundColor = 'rgba(255,255,0,0.7)';
+                                noteElem.style.padding = '5px';
+                                noteElem.style.borderRadius = '4px';
+                                noteElem.style.fontSize = '12px';
+                                noteElem.textContent = 'Cross-origin restrictions: sync disabled';
+                                viewport.appendChild(noteElem);
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // Select all desktop resolutions by default
+            document.querySelectorAll('.desktop-preset').forEach(preset => {
+                preset.click();
+            });
+        });
+    </script>
+</body>
+</html>
